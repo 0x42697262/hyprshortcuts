@@ -1,0 +1,16 @@
+# Help clangd find Hyprland + project headers so the editor stops flagging
+# false "file not found" errors. Mirrors the Makefile's INCLUDES.
+CompileFlags:
+  Add:
+    - "-std=c++26"
+    - "-Isrc"
+    - "-I/usr/include/hyprland"
+    - "-I/usr/include/hyprland/src"
+    - "-I/usr/include/hyprland/protocols"
+    - "-I/usr/include/pixman-1"
+    - "-I/usr/include/libdrm"
+    - "-I/usr/include/cairo"
+    - "-I/usr/include/pango-1.0"
+    - "-I/usr/include/glib-2.0"
+    - "-I/usr/lib/glib-2.0/include"
+    - "-I/usr/include/harfbuzz"
