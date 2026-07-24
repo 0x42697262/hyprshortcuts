@@ -1,16 +1,15 @@
 #include "OverlayRenderer.hpp"
 
 #include <algorithm>
-#include <tuple>
 
 #include <src/helpers/Color.hpp>
-#include <src/render/OpenGL.hpp>
+#include <src/render/Renderer.hpp>
+#include <src/render/pass/RectPassElement.hpp>
+#include <src/render/pass/TexPassElement.hpp>
 
 namespace hs {
 
 namespace {
-
-using GL = Render::GL::CHyprOpenGLImpl;
 
 struct RGB {
     float r, g, b;
@@ -29,11 +28,11 @@ CHyprColor rectColor(RectRole role, float a) {
 
 RGB textColor(TextRole role) {
     switch (role) {
-        case TextRole::Title:    return {0.55, 0.78, 1.0};  // accent blue
-        case TextRole::KeyGlyph: return {0.96, 0.96, 0.98}; // near-white
-        case TextRole::Plus:     return {0.5, 0.52, 0.58};  // dim
-        case TextRole::ChordSep: return {0.55, 0.78, 1.0};  // accent (chord step arrow)
-        case TextRole::Action:   return {0.82, 0.84, 0.88}; // light grey
+        case TextRole::Title:    return {0.55, 0.78, 1.0};
+        case TextRole::KeyGlyph: return {0.96, 0.96, 0.98};
+        case TextRole::Plus:     return {0.5, 0.52, 0.58};
+        case TextRole::ChordSep: return {0.55, 0.78, 1.0};
+        case TextRole::Action:   return {0.82, 0.84, 0.88};
     }
     return {1.0, 1.0, 1.0};
 }
@@ -50,21 +49,19 @@ bool isCentered(TextRole role) {
 
 void OverlayRenderer::draw(const LayoutTree& tree, PHLMONITOR monitor, double fade,
                            TextRenderer& text) {
-    if (!monitor)
+    if (!monitor || !g_pHyprRenderer)
         return;
 
     const float  a     = static_cast<float>(std::clamp(fade, 0.0, 1.0));
     const double scale = monitor->m_scale;
-    auto&        gl    = Render::GL::g_pHyprOpenGL;
-    if (!gl)
-        return;
-
-    gl->blend(true);
+    auto&        pass  = g_pHyprRenderer->m_renderPass;
 
     for (const RectNode& rn : tree.rects) {
-        GL::SRectRenderData d;
+        CRectPassElement::SRectData d;
+        d.box   = scaledBox(rn.rect, scale);
+        d.color = rectColor(rn.role, a);
         d.round = static_cast<int>(rn.radius * scale);
-        gl->renderRect(scaledBox(rn.rect, scale), rectColor(rn.role, a), d);
+        pass.add(makeUnique<CRectPassElement>(d));
     }
 
     for (const TextNode& tn : tree.texts) {
@@ -82,9 +79,11 @@ void OverlayRenderer::draw(const LayoutTree& tree, PHLMONITOR monitor, double fa
         const double x    = isCentered(tn.role) ? area.x + (area.w - sz.w) / 2.0 : area.x;
         const double y    = area.y + (area.h - sz.h) / 2.0;
 
-        GL::STextureRenderData td;
-        td.a = a;
-        gl->renderTexture(tex, CBox{x, y, sz.w, sz.h}, td);
+        CTexPassElement::SRenderData d;
+        d.tex = tex;
+        d.box = CBox{x, y, sz.w, sz.h};
+        d.a   = a;
+        pass.add(makeUnique<CTexPassElement>(d));
     }
 }
 

@@ -48,7 +48,16 @@ struct KeyEntry {
     const char* label;
 };
 
-constexpr std::array<KeyEntry, 24> kKeys{{
+constexpr std::array<KeyEntry, 33> kKeys{{
+    {"XF86AUDIOPLAY", "⏯", "Play/Pause"},
+    {"XF86AUDIONEXT", "⏭", "Next"},
+    {"XF86AUDIOPREV", "⏮", "Prev"},
+    {"XF86AUDIOMUTE", "🔇", "Mute"},
+    {"XF86AUDIORAISEVOLUME", "🔊", "Vol +"},
+    {"XF86AUDIOLOWERVOLUME", "🔉", "Vol -"},
+    {"XF86MONBRIGHTNESSUP", "☀", "Bright +"},
+    {"XF86MONBRIGHTNESSDOWN", "🌙", "Bright -"},
+    {"XF86CALCULATOR", "🖩", "Calc"},
     {"RETURN", "⏎", "Enter"},      // ⏎
     {"KP_ENTER", "⏎", "Enter"},
     {"SPACE", "␣", "Space"},       // ␣
@@ -120,7 +129,13 @@ bool modByName(const std::string& name, KeyCap& out) {
 }
 
 KeyCap normalizeKey(const std::string& key, const std::string& displayKey) {
-    const std::string& raw = !displayKey.empty() ? displayKey : key;
+    // Prefer the real keysym in `key`. displayKey is unreliable for our purpose:
+    // for plain binds it's a human string ("SUPER + E"), for hyprchord binds a
+    // plugin-internal id ("hyprchords:1:0:64"). Only fall back to it when key is
+    // empty (e.g. code:NN binds) and it isn't such an internal id.
+    std::string raw = key;
+    if (raw.empty() && !displayKey.empty() && displayKey.rfind("hyprchords:", 0) != 0)
+        raw = displayKey;
     if (raw.empty())
         return {"?", "?"};
 

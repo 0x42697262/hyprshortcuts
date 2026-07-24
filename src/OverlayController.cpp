@@ -54,24 +54,25 @@ bool OverlayController::init(HANDLE handle) {
 
     m_reloadedListener = bus->m_events.config.reloaded.listen([this] { refresh(); });
 
-    // Register one dispatcher per command: "hyprshortcuts:<name>".
-    for (const auto& name : m_registry.names()) {
-        HyprlandAPI::addDispatcherV2(handle, "hyprshortcuts:" + name,
-                                     [this, name](std::string) -> SDispatchResult {
-                                         m_registry.dispatch(name, *this);
-                                         return {};
-                                     });
-    }
+    // NOTE: no addDispatcherV2 — a plugin dispatcher named "hyprshortcuts:toggle"
+    // is exposed by Hyprland at hl.plugin.hyprshortcuts.toggle, which would
+    // SHADOW the Lua function of the same name. On Lua-native Hyprland the Lua
+    // functions are the interface, so we register only those.
 
-    // Lua config API: hl.plugin.hyprshortcuts.{toggle,refresh,close}. Non-
-    // capturing lambdas convert to the plain function pointer addLuaFunction
-    // wants; they act on the g_overlay singleton.
-    HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", "toggle",
-                                [](lua_State*) -> int { g_overlay.dispatchCommand("toggle"); return 0; });
-    HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", "refresh",
-                                [](lua_State*) -> int { g_overlay.dispatchCommand("refresh"); return 0; });
-    HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", "close",
-                                [](lua_State*) -> int { g_overlay.dispatchCommand("close"); return 0; });
+    // Lua config API: hl.plugin.hyprshortcuts.{toggle,refresh,close}. Hyprland
+    // does NOT drop plugin Lua functions when a plugin unloads, so a stale
+    // registration from a previous load would make addLuaFunction fail (leaving
+    // a dangling function). Remove first, then add, so reloads re-register
+    // cleanly. Non-capturing lambdas convert to the plain function pointer.
+    static const std::pair<const char*, PLUGIN_LUA_FN> kLuaFns[] = {
+        {"toggle", [](lua_State*) -> int { g_overlay.dispatchCommand("toggle"); return 0; }},
+        {"refresh", [](lua_State*) -> int { g_overlay.dispatchCommand("refresh"); return 0; }},
+        {"close", [](lua_State*) -> int { g_overlay.dispatchCommand("close"); return 0; }},
+    };
+    for (const auto& [name, fn] : kLuaFns) {
+        HyprlandAPI::removeLuaFunction(handle, "hyprshortcuts", name);
+        HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", name, fn);
+    }
 
     rebuildModel();
     return true;
@@ -86,6 +87,10 @@ void OverlayController::shutdown() {
     m_renderStageListener.reset();
     m_keyListener.reset();
     m_reloadedListener.reset();
+    if (PHANDLE) {
+        for (const char* name : {"toggle", "refresh", "close"})
+            HyprlandAPI::removeLuaFunction(PHANDLE, "hyprshortcuts", name);
+    }
     m_text.clear();
     m_visible = false;
     m_anim    = 0.0;
@@ -163,7 +168,9 @@ void OverlayController::damageTarget() {
 
 void OverlayController::onRenderStage(eRenderStage stage) {
     const bool active = m_visible || m_anim > 0.001;
-    if (!active || stage != RENDER_LAST_MOMENT)
+    // Add our pass elements while the render pass is still being built (after
+    // windows). RENDER_LAST_MOMENT is post-pass-execute, so nothing composites.
+    if (!active || stage != RENDER_POST_WINDOWS)
         return;
 
     PHLMONITOR cur = m_renderMonitor.lock();

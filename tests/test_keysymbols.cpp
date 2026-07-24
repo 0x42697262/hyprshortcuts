@@ -49,15 +49,30 @@ TEST(NormalizeKey, MouseButtonsMapToLabels) {
     EXPECT_EQ(normalizeKey("mouse:275").glyph, "MB275");
 }
 
-TEST(NormalizeKey, DisplayKeyIsPreferredWhenSet) {
-    // key is empty/opaque but Hyprland gave a displayKey
-    auto k = normalizeKey("code:10", "1");
+TEST(NormalizeKey, RealKeyBeatsDisplayKey) {
+    // displayKey often holds a human string; the real keysym in `key` wins.
+    auto k = normalizeKey("E", "SUPER + E");
+    EXPECT_EQ(k.glyph, "E");
+}
+
+TEST(NormalizeKey, DisplayKeyIsFallbackWhenKeyEmpty) {
+    auto k = normalizeKey("", "1"); // e.g. a code:NN bind
     EXPECT_EQ(k.glyph, "1");
-    EXPECT_EQ(k.label, "1");
+}
+
+TEST(NormalizeKey, IgnoresHyprchordInternalDisplayKey) {
+    // hyprchord's internal id must never be shown as a key.
+    auto k = normalizeKey("", "hyprchords:1:0:64");
+    EXPECT_EQ(k.glyph, "?");
 }
 
 TEST(NormalizeKey, UnknownKeysymPassesThrough) {
-    auto k = normalizeKey("XF86AudioPlay");
-    EXPECT_EQ(k.glyph, "XF86AudioPlay");
-    EXPECT_EQ(k.label, "XF86AudioPlay");
+    auto k = normalizeKey("XF86WWW");
+    EXPECT_EQ(k.glyph, "XF86WWW");
+    EXPECT_EQ(k.label, "XF86WWW");
+}
+
+TEST(NormalizeKey, MapsCommonXF86MediaKeys) {
+    EXPECT_EQ(normalizeKey("XF86AudioPlay").label, "Play/Pause");
+    EXPECT_EQ(normalizeKey("XF86AudioNext").label, "Next");
 }
