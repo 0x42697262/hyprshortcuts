@@ -81,25 +81,34 @@ LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics&
             for (const auto& s : c->items) {
                 double x = card.x + m.cardPadX;
 
-                // Build the token sequence: mods... then the key.
-                std::vector<const KeyCap*> tokens;
-                for (const auto& mod : s.mods)
-                    tokens.push_back(&mod);
-                tokens.push_back(&s.key);
-
-                for (size_t t = 0; t < tokens.size(); ++t) {
-                    if (t > 0) {
-                        // "+" joiner.
-                        const double plusW = measure("+", m.plusPx).w;
-                        tree.texts.push_back({{x + m.keycapGap, rowY, plusW, m.rowHeight}, "+",
-                                              m.plusPx, TextRole::Plus});
-                        x += m.keycapGap + plusW + m.keycapGap;
+                for (size_t si = 0; si < s.steps.size(); ++si) {
+                    if (si > 0) {
+                        // Chord separator between steps (e.g. SUPER+X › F).
+                        const double sepW = measure("›", m.plusPx).w;
+                        tree.texts.push_back({{x + m.keycapGap, rowY, sepW, m.rowHeight}, "›",
+                                              m.plusPx, TextRole::ChordSep});
+                        x += m.keycapGap + sepW + m.keycapGap;
                     }
-                    const double capW = keycapWidth(tokens[t]->glyph, m, measure);
-                    const Rect   cap{x, rowY + (m.rowHeight - m.keycapH) / 2.0, capW, m.keycapH};
-                    tree.rects.push_back({cap, RectRole::KeyCap, m.keycapRadius});
-                    tree.texts.push_back({cap, tokens[t]->glyph, m.glyphPx, TextRole::KeyGlyph});
-                    x += capW;
+
+                    // Tokens within a step: mods... then the key.
+                    std::vector<const KeyCap*> tokens;
+                    for (const auto& mod : s.steps[si].mods)
+                        tokens.push_back(&mod);
+                    tokens.push_back(&s.steps[si].key);
+
+                    for (size_t t = 0; t < tokens.size(); ++t) {
+                        if (t > 0) {
+                            const double plusW = measure("+", m.plusPx).w;
+                            tree.texts.push_back({{x + m.keycapGap, rowY, plusW, m.rowHeight}, "+",
+                                                  m.plusPx, TextRole::Plus});
+                            x += m.keycapGap + plusW + m.keycapGap;
+                        }
+                        const double capW = keycapWidth(tokens[t]->glyph, m, measure);
+                        const Rect cap{x, rowY + (m.rowHeight - m.keycapH) / 2.0, capW, m.keycapH};
+                        tree.rects.push_back({cap, RectRole::KeyCap, m.keycapRadius});
+                        tree.texts.push_back({cap, tokens[t]->glyph, m.glyphPx, TextRole::KeyGlyph});
+                        x += capW;
+                    }
                 }
 
                 x += m.keyToActionGap;

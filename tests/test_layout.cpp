@@ -20,8 +20,7 @@ Category catWith(const std::string& name, int rows) {
     c.name = name;
     for (int i = 0; i < rows; ++i) {
         Shortcut s;
-        s.mods   = {{"⌘", "Super"}};
-        s.key    = {"S", "S"};
+        s.steps  = {{{{"⌘", "Super"}}, {"S", "S"}}};
         s.action = "do thing " + std::to_string(i);
         c.items.push_back(s);
     }
@@ -64,19 +63,45 @@ TEST(Layout, EachModAndKeyGetsAKeycapRect) {
 TEST(Layout, EmitsTitleGlyphAndActionText) {
     LayoutMetrics m;
     auto          t = computeLayout({catWith("Apps", 1)}, m, fakeMeasure());
-    int           titles = 0, glyphs = 0, actions = 0, plus = 0;
+    int           titles = 0, glyphs = 0, actions = 0, plus = 0, seps = 0;
     for (const auto& tx : t.texts) {
         switch (tx.role) {
             case TextRole::Title: ++titles; break;
             case TextRole::KeyGlyph: ++glyphs; break;
             case TextRole::Action: ++actions; break;
             case TextRole::Plus: ++plus; break;
+            case TextRole::ChordSep: ++seps; break;
         }
     }
+    EXPECT_EQ(seps, 0); // single-step shortcut has no chord separator
     EXPECT_EQ(titles, 1);
     EXPECT_EQ(glyphs, 2);  // Super + S
     EXPECT_EQ(actions, 1);
     EXPECT_EQ(plus, 1);    // one "+" between the two keycaps
+}
+
+TEST(Layout, ChordStepsGetSeparatorBetweenThem) {
+    LayoutMetrics m;
+    Category      c;
+    c.name = "Chords";
+    Shortcut s;
+    // Two steps: SUPER+X › F  => 2 keycaps + 1 chord separator, no "+" (mods=1 each? no)
+    s.steps  = {{{{"⌘", "Super"}}, {"X", "X"}}, {{}, {"F", "F"}}};
+    s.action = "Firefox";
+    c.items.push_back(s);
+    auto t = computeLayout({c}, m, fakeMeasure());
+
+    int keycaps = countRole(t, RectRole::KeyCap);
+    int seps = 0, plus = 0;
+    for (const auto& tx : t.texts) {
+        if (tx.role == TextRole::ChordSep)
+            ++seps;
+        if (tx.role == TextRole::Plus)
+            ++plus;
+    }
+    EXPECT_EQ(keycaps, 3); // Super, X, F
+    EXPECT_EQ(seps, 1);    // one › between the two steps
+    EXPECT_EQ(plus, 1);    // one + inside step 1 (Super + X)
 }
 
 TEST(Layout, UsesMultipleColumnsForManyCategories) {
@@ -95,7 +120,7 @@ TEST(Layout, KeycapWidthGrowsWithGlyphWidth) {
     Category      c;
     c.name = "T";
     Shortcut s;
-    s.key    = {"WWWWWW", "wide"}; // wide glyph
+    s.steps  = {{{}, {"WWWWWW", "wide"}}}; // wide glyph
     s.action = "x";
     c.items.push_back(s);
     auto t = computeLayout({c}, m, fakeMeasure());

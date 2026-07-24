@@ -9,7 +9,7 @@ Shortcut sc(const std::string& category, const std::string& action) {
     Shortcut s;
     s.category = category;
     s.action   = action;
-    s.key      = {action, action};
+    s.steps    = {{{}, {action, action}}};
     return s;
 }
 } // namespace
@@ -41,6 +41,24 @@ TEST(Grouping, DefaultCategorySortsLast) {
     EXPECT_EQ(cats[0].name, "Apps");
     EXPECT_EQ(cats[1].name, "Zebra");
     EXPECT_EQ(cats[2].name, "General"); // default sinks below even "Zebra"
+}
+
+TEST(Dedupe, CollapsesIdenticalShortcuts) {
+    // Same category/action/steps => duplicate (hyprchord sticky-mods pair).
+    std::vector<Shortcut> in{sc("Apps", "Firefox"), sc("Apps", "Firefox"), sc("Apps", "Files")};
+    auto                  out = dedupeShortcuts(in);
+    ASSERT_EQ(out.size(), 2u);
+    EXPECT_EQ(out[0].action, "Firefox");
+    EXPECT_EQ(out[1].action, "Files");
+}
+
+TEST(Dedupe, KeepsShortcutsDifferingByKey) {
+    Shortcut a = sc("Apps", "Same");
+    a.steps    = {{{}, {"A", "A"}}};
+    Shortcut b = sc("Apps", "Same");
+    b.steps    = {{{}, {"B", "B"}}};
+    auto out   = dedupeShortcuts({a, b});
+    EXPECT_EQ(out.size(), 2u); // different keys => not duplicates
 }
 
 TEST(Grouping, CategorySortIsCaseInsensitive) {

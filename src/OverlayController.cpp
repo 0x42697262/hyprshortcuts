@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include <lua.hpp>
+
 #include <src/Compositor.hpp>
 #include <src/devices/IKeyboard.hpp>
 #include <src/event/EventBus.hpp>
@@ -61,8 +63,22 @@ bool OverlayController::init(HANDLE handle) {
                                      });
     }
 
+    // Lua config API: hl.plugin.hyprshortcuts.{toggle,refresh,close}. Non-
+    // capturing lambdas convert to the plain function pointer addLuaFunction
+    // wants; they act on the g_overlay singleton.
+    HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", "toggle",
+                                [](lua_State*) -> int { g_overlay.dispatchCommand("toggle"); return 0; });
+    HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", "refresh",
+                                [](lua_State*) -> int { g_overlay.dispatchCommand("refresh"); return 0; });
+    HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", "close",
+                                [](lua_State*) -> int { g_overlay.dispatchCommand("close"); return 0; });
+
     rebuildModel();
     return true;
+}
+
+void OverlayController::dispatchCommand(const std::string& name) {
+    m_registry.dispatch(name, *this);
 }
 
 void OverlayController::shutdown() {
@@ -86,7 +102,7 @@ void OverlayController::rebuildModel() {
         if (auto s = toShortcut(raw))
             shortcuts.push_back(std::move(*s));
     }
-    m_cats = groupByCategory(shortcuts);
+    m_cats = groupByCategory(dedupeShortcuts(shortcuts));
 }
 
 void OverlayController::rebuildLayout(PHLMONITOR mon) {

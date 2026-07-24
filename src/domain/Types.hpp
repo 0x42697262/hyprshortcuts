@@ -31,12 +31,18 @@ struct KeyCap {
     std::string label;  // e.g. "Super", "Enter", "S"
 };
 
-// One shortcut row: [mods...] + key  ->  action.
+// One press in a shortcut: [mods...] + key. Plain binds are a single step;
+// hyprchord chains (e.g. SUPER+X ; F) are several steps in sequence.
+struct Step {
+    std::vector<KeyCap> mods; // ordered modifiers (Super, Ctrl, Alt, Shift, ...)
+    KeyCap              key;  // the main key
+};
+
+// One shortcut row: one or more steps  ->  action.
 struct Shortcut {
-    std::vector<KeyCap> mods;      // ordered modifiers (Super, Ctrl, Alt, Shift, ...)
-    KeyCap              key;       // the main key
-    std::string         category;  // group name
-    std::string         action;    // human label (description with category stripped)
+    std::vector<Step> steps;    // ≥1; steps are drawn joined by a chord separator
+    std::string       category; // group name
+    std::string       action;   // human label (description with category stripped)
 };
 
 // A named group of shortcuts.

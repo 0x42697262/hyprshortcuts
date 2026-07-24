@@ -99,6 +99,26 @@ std::vector<KeyCap> decodeModmask(uint32_t modmask) {
     return out;
 }
 
+bool modByName(const std::string& name, KeyCap& out) {
+    // Accepts the modifier tokens hyprchord emits in a step repr (lowercase),
+    // plus common aliases. The key token of a step will not match -> false.
+    static const std::array<std::pair<const char*, size_t>, 9> aliases{{
+        {"super", 0}, {"mod4", 0}, {"win", 0}, // -> Super
+        {"ctrl", 1},  {"control", 1},           // -> Ctrl
+        {"alt", 2},   {"mod1", 2},              // -> Alt
+        {"shift", 3},
+        {"hyper", 4}, // MOD3
+    }};
+    const std::string up = upper(name);
+    for (const auto& [alias, idx] : aliases) {
+        if (up == upper(alias)) {
+            out = {kMods[idx].glyph, kMods[idx].label};
+            return true;
+        }
+    }
+    return false;
+}
+
 KeyCap normalizeKey(const std::string& key, const std::string& displayKey) {
     const std::string& raw = !displayKey.empty() ? displayKey : key;
     if (raw.empty())

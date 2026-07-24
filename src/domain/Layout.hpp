@@ -25,7 +25,7 @@ struct Rect {
 };
 
 enum class RectRole { Scrim, Panel, Card, KeyCap };
-enum class TextRole { Title, KeyGlyph, Plus, Action };
+enum class TextRole { Title, KeyGlyph, Plus, ChordSep, Action };
 
 struct RectNode {
     Rect     rect;

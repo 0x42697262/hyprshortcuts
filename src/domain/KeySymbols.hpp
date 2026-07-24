@@ -17,4 +17,9 @@ std::vector<KeyCap> decodeModmask(uint32_t modmask);
 // compact glyph + label. Unknown keys fall back to the raw string.
 KeyCap normalizeKey(const std::string& key, const std::string& displayKey = "");
 
+// Look up a modifier by name (case-insensitive: "super", "shift", "ctrl",
+// "control", "alt", "hyper", ...). Returns false for unknown names (e.g. the
+// key token in a chord step). Used to parse hyprchord step reprs.
+bool modByName(const std::string& name, KeyCap& out);
+
 } // namespace hs

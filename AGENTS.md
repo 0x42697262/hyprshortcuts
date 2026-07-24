@@ -73,15 +73,22 @@ touch Hyprland directly.
 If the action needs a new capability on the context, add a method to
 `ICommandContext` and implement it on `OverlayController` + the test mock.
 
-## Categories
+## Categories & chords
 
-A bind is shown only if it has a description. The category comes from a
+A bind is shown only if the user described it. The category comes from a
 `"Category: Label"` prefix, split on the first `:` (see `BindModel::splitCategory`).
-No prefix → the default `"General"` group (sorted last). Example:
+No prefix → the default `"General"` group (sorted last). Descriptions come from
+`opts.description` in the Lua config (Hyprland 0.55+ is Lua-native; `bindd`/`.conf`
+is deprecated).
 
-```
-bindd = SUPER, Return, Apps: Terminal, exec, kitty
-```
+**hyprchord chains** (binds whose submap starts with `hc:`) are expanded into a
+multi-step `Shortcut`: the leading steps are reconstructed from the submap name
+(`BindModel::chordPrefixSteps`) and the final step is the bind's own key. Layout
+draws steps joined by a `›` separator. hyprchord's own auto-labels (any
+description starting with `hyprchords:`) are treated as "undescribed" and hidden,
+as are `abort`/`chain`/catchall machinery binds. hyprchord was extended so
+`hc.chord(steps, action, description)` sets a real description — see its repo.
+`Grouping::dedupeShortcuts` collapses the sticky-mods duplicate a chain produces.
 
 ## Conventions
 

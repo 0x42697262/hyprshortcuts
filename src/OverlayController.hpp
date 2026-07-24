@@ -25,6 +25,10 @@ class OverlayController : public ICommandContext {
     bool init(HANDLE handle);
     void shutdown();
 
+    // Run a registered command by name (used by the dispatchers and the Lua
+    // functions). No-op if the name is unknown.
+    void dispatchCommand(const std::string& name);
+
     // ICommandContext
     void show() override;
     void hide() override;

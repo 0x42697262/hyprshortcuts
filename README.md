@@ -46,41 +46,68 @@ hyprpm enable hyprshortcuts
 hyprpm reload
 ```
 
-## Using it
+## Using it (Lua config)
 
-Bind a key to the toggle dispatcher in `hyprland.conf`:
+Hyprland 0.55+ uses Lua config (`hyprland.lua`, `hyprlang`/`.conf` deprecated).
+The plugin exposes Lua functions under `hl.plugin.hyprshortcuts`, so binding the
+toggle is a one-liner (guard on the plugin being loaded):
 
-```ini
-bind = SUPER, slash, hyprshortcuts:toggle
+```lua
+-- config/keybinds.lua
+if hl.plugin.hyprshortcuts then
+    hl.bind("SUPER + SLASH", hl.plugin.hyprshortcuts.toggle)
+end
+```
+
+Or, if you drive keys through hyprchords, register it as a chord:
+
+```lua
+hc.chord("SUPER + SLASH", hl.plugin.hyprshortcuts.toggle, "System: Keybind cheatsheet")
 ```
 
 Press it to show/hide. While the overlay is up, **any key (e.g. `Escape`)
 dismisses it** (the key is swallowed).
 
-Dispatchers provided:
-
-| Dispatcher                | Action                                   |
-| ------------------------- | ---------------------------------------- |
-| `hyprshortcuts:toggle`    | Show/hide the cheatsheet                 |
-| `hyprshortcuts:close`     | Hide it                                  |
-| `hyprshortcuts:refresh`   | Re-read binds and rebuild the layout     |
+Lua functions: `hl.plugin.hyprshortcuts.toggle` / `.close` / `.refresh`
+(re-read binds). The same actions are also plain dispatchers
+(`hyprshortcuts:toggle`, `:close`, `:refresh`) if you prefer.
 
 ## Making your binds show up
 
-Only binds **with a description** appear. Descriptions drive the grouping via a
-`Category: Label` prefix (split on the first `:`). Use `bindd` (the description
-form of `bind`):
+Only binds **you describe** appear, so the sheet stays meaningful. The
+description drives the grouping via a `Category: Label` prefix (split on the
+first `:`). In Lua, a description is `opts.description`:
 
-```ini
-bindd = SUPER, Return,        Apps: Terminal,       exec, kitty
-bindd = SUPER, E,             Apps: Files,          exec, nautilus
-bindd = SUPER SHIFT, S,       Screenshot: Region,   exec, grimblast copy area
-bindd = SUPER, Q,             Window: Close,        killactive,
-bindd = SUPER, F,             Window: Fullscreen,   fullscreen,
+```lua
+-- plain bind
+hl.bind("SUPER + E", hl.dsp.exec_cmd("nautilus"), { description = "Apps: Files" })
+
+-- in a keymap-table entry (bind and/or hyprchords chord)
+{
+    action = hl.dsp.exec_cmd(d.terminal),
+    bind   = "SUPER + RETURN",
+    chord  = "SUPER+RETURN",
+    opts   = { description = "Apps: Terminal" },
+},
 ```
 
 - No `Category:` prefix → the bind lands in a **General** group (shown last).
-- Binds without any description are omitted from the sheet.
+- Binds without a description are omitted from the sheet.
+
+### hyprchords chords
+
+hyprchord chains show up too, rendered as their full step sequence — e.g.
+`SUPER+X ; F` draws as `⌘ X › F`. This needs a hyprchords build with description
+support: `hc.chord(steps, action, "Category: Label")`. Pass the description as
+the third argument (this repo's sibling `hyprchord` supports it); if you register
+chords from a keymap table, forward `opts.description` in your `register_one`:
+
+```lua
+hc.chord(chord, action, opts and opts.description)
+```
+
+Chords without a description are hidden (hyprchord's auto label like
+`super+x ; f -> lua` is treated as "no description").
 
 ## Testing
 
@@ -95,7 +122,6 @@ See `AGENTS.md` for the architecture and how to extend it.
 
 ## Limitations / roadmap (v1)
 
-- **Submap / chord binds** (e.g. hyprchord sequences) are not shown yet.
 - The layout is computed **once per show** — it won't re-flow if the monitor
   resolution changes while the overlay is up.
 - No pagination/scroll for very large bind sets.

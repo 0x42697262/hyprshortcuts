@@ -32,6 +32,7 @@ RGB textColor(TextRole role) {
         case TextRole::Title:    return {0.55, 0.78, 1.0};  // accent blue
         case TextRole::KeyGlyph: return {0.96, 0.96, 0.98}; // near-white
         case TextRole::Plus:     return {0.5, 0.52, 0.58};  // dim
+        case TextRole::ChordSep: return {0.55, 0.78, 1.0};  // accent (chord step arrow)
         case TextRole::Action:   return {0.82, 0.84, 0.88}; // light grey
     }
     return {1.0, 1.0, 1.0};
@@ -42,7 +43,7 @@ CBox scaledBox(const Rect& r, double s) {
 }
 
 bool isCentered(TextRole role) {
-    return role == TextRole::KeyGlyph || role == TextRole::Plus;
+    return role == TextRole::KeyGlyph || role == TextRole::Plus || role == TextRole::ChordSep;
 }
 
 } // namespace
