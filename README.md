@@ -111,39 +111,42 @@ Chords without a description are hidden (hyprchord's auto label like
 
 ## Configuration
 
-All appearance is configurable under a `plugin { hyprshortcuts { ... } }` block.
-Values are re-read on `hyprctl reload`, so you can tweak the theme live. Colors
-are `AARRGGBB` hex.
+Hyprland 0.55+ is Lua-native, so configure the plugin with `hl.config` (colors
+are `rgba()`/`rgb()` strings, like the rest of your Lua config). Values are
+re-read on `hyprctl reload`, so you can tweak the theme live.
 
-```ini
-plugin {
-    hyprshortcuts {
-        key_style   = icons     # keycap contents: "icons" (⌘ ⏎) or "text" (Super Enter)
-        font_family = Sans      # font for all overlay text
-        max_columns = 4         # max columns of category cards (1–8)
+```lua
+-- config/hyprshortcuts.lua
+hl.config({
+    plugin = {
+        hyprshortcuts = {
+            key_style   = "icons",  -- keycap contents: "icons" (⌘ ⏎) or "text" (Super Enter)
+            font_family = "Sans",   -- font for all overlay text
+            max_columns = 4,        -- max columns of category cards (1–8)
 
-        # colors (AARRGGBB)
-        scrim_color     = 0x73000000   # full-screen dim behind the panel
-        panel_color     = 0xF01C1F26   # panel background
-        card_color      = 0xF52A2C36   # category card background
-        keycap_color    = 0xFF3D404D   # keycap background
-        title_color     = 0xFF8CC7FF   # category title text
-        action_color    = 0xFFD1D6E0   # action/description text
-        key_color       = 0xFFF5F5FA   # keycap glyph/label text
-        separator_color = 0xFF808594   # the "+" joiner and chord "›"
+            -- colors
+            scrim_color     = "rgba(00000073)", -- full-screen dim behind the panel
+            panel_color     = "rgba(1c1f26f0)", -- panel background
+            card_color      = "rgba(2a2c36f5)", -- category card background
+            keycap_color    = "rgb(3d404d)",    -- keycap background
+            title_color     = "rgb(8cc7ff)",    -- category title text
+            action_color    = "rgb(d1d6e0)",    -- action/description text
+            key_color       = "rgb(f5f5fa)",    -- keycap glyph/label text
+            separator_color = "rgb(808594)",    -- the "+" joiner and chord "›"
 
-        # corner radii (px)
-        panel_rounding  = 18
-        card_rounding   = 12
-        keycap_rounding = 6
-    }
-}
+            -- corner radii (px)
+            panel_rounding  = 18,
+            card_rounding   = 12,
+            keycap_rounding = 6,
+        },
+    },
+})
 ```
 
-The defaults above reproduce the built-in dark theme, so an empty block changes
-nothing. Set `key_style = text` to render keycaps as word labels (`Super Enter`)
-instead of glyphs — keys without a distinct glyph (e.g. `F5`) look the same
-either way.
+The defaults above reproduce the built-in dark theme, so omitting a key changes
+nothing. Set `key_style = "text"` to render keycaps as word labels
+(`Super Enter`) instead of glyphs — keys without a distinct glyph (e.g. `F5`)
+look the same either way.
 
 ## Testing
 

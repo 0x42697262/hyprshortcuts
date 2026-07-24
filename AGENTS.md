@@ -101,8 +101,9 @@ as are `abort`/`chain`/catchall machinery binds. hyprchord was extended so
 ## Known limits / future work
 
 See the bottom of `README.md`. The theme, font, column count, roundings, and
-keycap style (`icons`/`text`) are configurable via `plugin { hyprshortcuts { ...
-} }` — registered as `plugin:hyprshortcuts:*` config values in
+keycap style (`icons`/`text`) are configurable from Lua via
+`hl.config({ plugin = { hyprshortcuts = { ... } } })` — registered as
+`plugin:hyprshortcuts:*` config values in
 `OverlayController::registerConfig` and read in `readConfig` (called from init
 and the `config.reloaded` listener). Config values feed a base `LayoutMetrics`
 (`m_metrics`), the render `Theme` (`OverlayRenderer::setTheme`), and the font
