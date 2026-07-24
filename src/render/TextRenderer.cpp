@@ -37,6 +37,13 @@ std::string cacheKey(const std::string& text, double px, float r, float g, float
 
 TextRenderer::TextRenderer(std::string fontFamily) : m_font(std::move(fontFamily)) {}
 
+void TextRenderer::setFont(std::string fontFamily) {
+    if (fontFamily == m_font)
+        return;
+    m_font = std::move(fontFamily);
+    clear(); // measurements and cached textures are font-dependent
+}
+
 Vec2 TextRenderer::measure(const std::string& text, double px) const {
     cairo_surface_t* tmp = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1, 1);
     cairo_t*         cr  = cairo_create(tmp);

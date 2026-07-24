@@ -100,5 +100,12 @@ as are `abort`/`chain`/catchall machinery binds. hyprchord was extended so
 
 ## Known limits / future work
 
-See the bottom of `README.md`. Notably v1 ignores submap/chord binds, lays out
-once per show (no live re-layout on resolution change), and hardcodes the theme.
+See the bottom of `README.md`. The theme, font, column count, roundings, and
+keycap style (`icons`/`text`) are configurable via `plugin { hyprshortcuts { ...
+} }` — registered as `plugin:hyprshortcuts:*` config values in
+`OverlayController::registerConfig` and read in `readConfig` (called from init
+and the `config.reloaded` listener). Config values feed a base `LayoutMetrics`
+(`m_metrics`), the render `Theme` (`OverlayRenderer::setTheme`), and the font
+(`TextRenderer::setFont`). The layout re-flows when the monitor resolution
+changes (a size-diff check in `onRenderStage`). The remaining v1 gap is
+pagination/scroll for oversized sheets.

@@ -11,30 +11,28 @@ namespace hs {
 
 namespace {
 
-struct RGB {
-    float r, g, b;
-};
-
-// Flat dark theme. Alpha is folded in per-draw via the fade value.
-CHyprColor rectColor(RectRole role, float a) {
+// Rect fill from the theme; the colour's alpha is folded with the fade value.
+CHyprColor rectColor(const Theme& t, RectRole role, float a) {
+    RGBA c;
     switch (role) {
-        case RectRole::Scrim: return CHyprColor(0.0, 0.0, 0.0, 0.45 * a);
-        case RectRole::Panel: return CHyprColor(0.11, 0.12, 0.15, 0.94 * a);
-        case RectRole::Card:  return CHyprColor(0.16, 0.17, 0.21, 0.96 * a);
-        case RectRole::KeyCap:return CHyprColor(0.24, 0.25, 0.30, 1.0 * a);
+        case RectRole::Scrim:  c = t.scrim; break;
+        case RectRole::Panel:  c = t.panel; break;
+        case RectRole::Card:   c = t.card; break;
+        case RectRole::KeyCap: c = t.keycap; break;
     }
-    return CHyprColor(0.0, 0.0, 0.0, a);
+    return CHyprColor(c.r, c.g, c.b, c.a * a);
 }
 
-RGB textColor(TextRole role) {
+// Text colour from the theme (rgb; alpha comes from the fade at draw time).
+RGBA textColor(const Theme& t, TextRole role) {
     switch (role) {
-        case TextRole::Title:    return {0.55, 0.78, 1.0};
-        case TextRole::KeyGlyph: return {0.96, 0.96, 0.98};
-        case TextRole::Plus:     return {0.5, 0.52, 0.58};
-        case TextRole::ChordSep: return {0.55, 0.78, 1.0};
-        case TextRole::Action:   return {0.82, 0.84, 0.88};
+        case TextRole::Title:    return t.title;
+        case TextRole::KeyGlyph: return t.keyGlyph;
+        case TextRole::Plus:     return t.separator;
+        case TextRole::ChordSep: return t.separator;
+        case TextRole::Action:   return t.action;
     }
-    return {1.0, 1.0, 1.0};
+    return {1.0f, 1.0f, 1.0f};
 }
 
 CBox scaledBox(const Rect& r, double s) {
@@ -59,7 +57,7 @@ void OverlayRenderer::draw(const LayoutTree& tree, PHLMONITOR monitor, double fa
     for (const RectNode& rn : tree.rects) {
         CRectPassElement::SRectData d;
         d.box   = scaledBox(rn.rect, scale);
-        d.color = rectColor(rn.role, a);
+        d.color = rectColor(m_theme, rn.role, a);
         d.round = static_cast<int>(rn.radius * scale);
         pass.add(makeUnique<CRectPassElement>(d));
     }
@@ -68,8 +66,8 @@ void OverlayRenderer::draw(const LayoutTree& tree, PHLMONITOR monitor, double fa
         if (tn.text.empty())
             continue;
 
-        const RGB col = textColor(tn.role);
-        Vec2      sz;
+        const RGBA col = textColor(m_theme, tn.role);
+        Vec2       sz;
         // Render at physical resolution (px * scale) so text stays crisp.
         auto tex = text.textureFor(tn.text, tn.px * scale, col.r, col.g, col.b, sz);
         if (!tex)

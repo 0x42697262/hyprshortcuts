@@ -30,6 +30,9 @@ bool OverlayController::init(HANDLE handle) {
 
     registerDefaultCommands(m_registry);
 
+    if (!registerConfig(handle))
+        return false;
+
     auto* bus = Event::bus().get();
     if (!bus)
         return false;
@@ -52,7 +55,10 @@ bool OverlayController::init(HANDLE handle) {
             info.cancelled = true; // swallow the dismiss key
         });
 
-    m_reloadedListener = bus->m_events.config.reloaded.listen([this] { refresh(); });
+    m_reloadedListener = bus->m_events.config.reloaded.listen([this] {
+        readConfig();
+        refresh();
+    });
 
     // NOTE: no addDispatcherV2 — a plugin dispatcher named "hyprshortcuts:toggle"
     // is exposed by Hyprland at hl.plugin.hyprshortcuts.toggle, which would
@@ -74,12 +80,98 @@ bool OverlayController::init(HANDLE handle) {
         HyprlandAPI::addLuaFunction(handle, "hyprshortcuts", name, fn);
     }
 
+    readConfig();
     rebuildModel();
     return true;
 }
 
 void OverlayController::dispatchCommand(const std::string& name) {
     m_registry.dispatch(name, *this);
+}
+
+bool OverlayController::registerConfig(HANDLE handle) {
+    namespace CV = Config::Values;
+    using CV::makeConfigValue;
+
+    // Appearance knobs live under plugin:hyprshortcuts:*. Colours are ARGB.
+    m_cfgKeyStyle = makeConfigValue<CV::CStringValue>(
+        "plugin:hyprshortcuts:key_style", "keycap contents: \"icons\" (glyphs) or \"text\" (labels)",
+        "icons", CV::SStringValueOptions{.validator = CV::strChoice({"icons", "text"})});
+    m_cfgFont = makeConfigValue<CV::CStringValue>("plugin:hyprshortcuts:font_family",
+                                                  "font family for all overlay text", "Sans");
+    m_cfgMaxColumns = makeConfigValue<CV::CIntValue>("plugin:hyprshortcuts:max_columns",
+                                                     "maximum number of columns of category cards", 4,
+                                                     CV::SIntValueOptions{.min = 1, .max = 8});
+
+    m_cfgScrim  = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:scrim_color",
+                                                  "full-screen dim behind the panel", 0x73000000);
+    m_cfgPanel  = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:panel_color",
+                                                  "panel background", 0xF01C1F26);
+    m_cfgCard   = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:card_color",
+                                                 "category card background", 0xF52A2C36);
+    m_cfgKeycap = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:keycap_color",
+                                                   "keycap background", 0xFF3D404D);
+    m_cfgTitle  = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:title_color",
+                                                  "category title text", 0xFF8CC7FF);
+    m_cfgAction = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:action_color",
+                                                   "action/description text", 0xFFD1D6E0);
+    m_cfgKey    = makeConfigValue<CV::CColorValue>("plugin:hyprshortcuts:key_color",
+                                                "keycap glyph/label text", 0xFFF5F5FA);
+    m_cfgSeparator = makeConfigValue<CV::CColorValue>(
+        "plugin:hyprshortcuts:separator_color", "the \"+\" joiner and chord \"›\" text", 0xFF808594);
+
+    m_cfgPanelRounding  = makeConfigValue<CV::CIntValue>("plugin:hyprshortcuts:panel_rounding",
+                                                        "panel corner radius (px)", 18,
+                                                        CV::SIntValueOptions{.min = 0});
+    m_cfgCardRounding   = makeConfigValue<CV::CIntValue>("plugin:hyprshortcuts:card_rounding",
+                                                       "card corner radius (px)", 12,
+                                                       CV::SIntValueOptions{.min = 0});
+    m_cfgKeycapRounding = makeConfigValue<CV::CIntValue>("plugin:hyprshortcuts:keycap_rounding",
+                                                         "keycap corner radius (px)", 6,
+                                                         CV::SIntValueOptions{.min = 0});
+
+    const SP<Config::Values::IValue> all[] = {
+        m_cfgKeyStyle,      m_cfgFont,          m_cfgMaxColumns, m_cfgScrim,        m_cfgPanel,
+        m_cfgCard,          m_cfgKeycap,        m_cfgTitle,      m_cfgAction,       m_cfgKey,
+        m_cfgSeparator,     m_cfgPanelRounding, m_cfgCardRounding, m_cfgKeycapRounding};
+    for (const auto& v : all) {
+        if (!HyprlandAPI::addConfigValueV2(handle, v))
+            return false;
+    }
+    return true;
+}
+
+void OverlayController::readConfig() {
+    // ARGB integer -> straight RGBA floats.
+    const auto rgba = [](int64_t argb) -> RGBA {
+        return {static_cast<float>((argb >> 16) & 0xFF) / 255.0f,
+                static_cast<float>((argb >> 8) & 0xFF) / 255.0f,
+                static_cast<float>(argb & 0xFF) / 255.0f,
+                static_cast<float>((argb >> 24) & 0xFF) / 255.0f};
+    };
+
+    // Layout metrics (base; screen size is filled per-monitor in rebuildLayout).
+    m_metrics.keyStyle =
+        std::string{m_cfgKeyStyle->value()} == "text" ? KeyCapStyle::Text : KeyCapStyle::Icons;
+    m_metrics.maxColumns    = static_cast<int>(m_cfgMaxColumns->value());
+    m_metrics.panelRadius   = static_cast<double>(m_cfgPanelRounding->value());
+    m_metrics.cardRadius    = static_cast<double>(m_cfgCardRounding->value());
+    m_metrics.keycapRadius  = static_cast<double>(m_cfgKeycapRounding->value());
+
+    // Theme.
+    Theme theme;
+    theme.scrim     = rgba(m_cfgScrim->value());
+    theme.panel     = rgba(m_cfgPanel->value());
+    theme.card      = rgba(m_cfgCard->value());
+    theme.keycap    = rgba(m_cfgKeycap->value());
+    theme.title     = rgba(m_cfgTitle->value());
+    theme.action    = rgba(m_cfgAction->value());
+    theme.keyGlyph  = rgba(m_cfgKey->value());
+    theme.separator = rgba(m_cfgSeparator->value());
+    m_renderer.setTheme(theme);
+
+    // Font (setFont drops the texture cache only if the family actually changed).
+    m_text.setFont(std::string{m_cfgFont->value()});
 }
 
 void OverlayController::shutdown() {
@@ -113,10 +205,11 @@ void OverlayController::rebuildModel() {
 void OverlayController::rebuildLayout(PHLMONITOR mon) {
     if (!mon)
         return;
-    LayoutMetrics m;
-    m.screenW = mon->m_size.x;
-    m.screenH = mon->m_size.y;
-    m_tree    = computeLayout(
+    LayoutMetrics m = m_metrics; // keyStyle, columns, roundings from config
+    m.screenW       = mon->m_size.x;
+    m.screenH       = mon->m_size.y;
+    m_treeSize      = {m.screenW, m.screenH};
+    m_tree          = computeLayout(
         m_cats, m, [this](const std::string& t, double px) { return m_text.measure(t, px); });
 }
 
@@ -187,6 +280,10 @@ void OverlayController::onRenderStage(eRenderStage stage) {
 
     if (m_anim <= 0.001 && !m_visible)
         return;
+
+    // Re-flow if the monitor resolution changed while the overlay is up.
+    if (cur->m_size.x != m_treeSize.w || cur->m_size.y != m_treeSize.h)
+        rebuildLayout(cur);
 
     m_renderer.draw(m_tree, cur, m_anim, m_text);
 

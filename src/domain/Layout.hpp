@@ -27,6 +27,11 @@ struct Rect {
 enum class RectRole { Scrim, Panel, Card, KeyCap };
 enum class TextRole { Title, KeyGlyph, Plus, ChordSep, Action };
 
+// How a keycap's key is drawn: the compact Unicode glyph (⌘, ⏎) or the
+// human-readable label (Super, Enter). Keys without a distinct glyph render the
+// same in both modes (glyph == label).
+enum class KeyCapStyle { Icons, Text };
+
 struct RectNode {
     Rect     rect;
     RectRole role   = RectRole::Panel;
@@ -48,8 +53,9 @@ struct LayoutTree {
 };
 
 struct LayoutMetrics {
-    double screenW           = 1920;
-    double screenH           = 1080;
+    double      screenW      = 1920;
+    double      screenH      = 1080;
+    KeyCapStyle keyStyle     = KeyCapStyle::Icons;
     double maxPanelWidthFrac = 0.9;
     int    maxColumns        = 4;
     double columnWidth       = 340;

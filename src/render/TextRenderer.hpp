@@ -18,6 +18,10 @@ class TextRenderer {
   public:
     explicit TextRenderer(std::string fontFamily = "Sans");
 
+    // Change the font family. Drops the cached textures so the new font takes
+    // effect on the next draw. No-op if the family is unchanged.
+    void setFont(std::string fontFamily);
+
     // Pixel size of `text` at `px`. Safe to call without a GL context.
     Vec2 measure(const std::string& text, double px) const;
 

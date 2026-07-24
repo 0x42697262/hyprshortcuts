@@ -22,6 +22,11 @@ double cardHeight(const Category& c, const LayoutMetrics& m) {
     return h;
 }
 
+// The string drawn on a keycap for the configured style.
+const std::string& capText(const KeyCap& cap, KeyCapStyle style) {
+    return style == KeyCapStyle::Text ? cap.label : cap.glyph;
+}
+
 double keycapWidth(const std::string& glyph, const LayoutMetrics& m, const TextMeasure& measure) {
     const double textW = measure(glyph, m.glyphPx).w;
     return std::max(m.keycapMinW, textW + 2 * m.keycapPadX);
@@ -103,10 +108,11 @@ LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics&
                                                   m.plusPx, TextRole::Plus});
                             x += m.keycapGap + plusW + m.keycapGap;
                         }
-                        const double capW = keycapWidth(tokens[t]->glyph, m, measure);
+                        const std::string& capStr = capText(*tokens[t], m.keyStyle);
+                        const double       capW   = keycapWidth(capStr, m, measure);
                         const Rect cap{x, rowY + (m.rowHeight - m.keycapH) / 2.0, capW, m.keycapH};
                         tree.rects.push_back({cap, RectRole::KeyCap, m.keycapRadius});
-                        tree.texts.push_back({cap, tokens[t]->glyph, m.glyphPx, TextRole::KeyGlyph});
+                        tree.texts.push_back({cap, capStr, m.glyphPx, TextRole::KeyGlyph});
                         x += capW;
                     }
                 }

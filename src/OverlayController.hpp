@@ -5,6 +5,7 @@
 #include <hyprutils/signal/Signal.hpp>
 
 #include <src/SharedDefs.hpp>
+#include <src/config/values/ConfigValues.hpp>
 #include <src/desktop/DesktopTypes.hpp>
 
 #include "commands/CommandContext.hpp"
@@ -37,8 +38,10 @@ class OverlayController : public ICommandContext {
     bool isVisible() const override;
 
   private:
-    void   rebuildModel();                // live binds -> grouped categories
-    void   rebuildLayout(PHLMONITOR mon); // categories -> LayoutTree for a monitor
+    bool   registerConfig(HANDLE handle);  // create + register all config values
+    void   readConfig();                   // config values -> metrics/theme/font
+    void   rebuildModel();                 // live binds -> grouped categories
+    void   rebuildLayout(PHLMONITOR mon);  // categories -> LayoutTree for a monitor
     void   onRenderStage(eRenderStage stage);
     void   onKeyPressed();
     void   damageTarget();
@@ -50,6 +53,16 @@ class OverlayController : public ICommandContext {
 
     std::vector<Category> m_cats;
     LayoutTree            m_tree;
+    LayoutMetrics         m_metrics;    // base metrics from config (no screen size)
+    Vec2                  m_treeSize;   // screen size the current m_tree was built for
+
+    // Config values (plugin:hyprshortcuts:*). Registered in init, read on reload.
+    SP<Config::Values::CStringValue> m_cfgKeyStyle;
+    SP<Config::Values::CStringValue> m_cfgFont;
+    SP<Config::Values::CIntValue>    m_cfgMaxColumns;
+    SP<Config::Values::CColorValue>  m_cfgScrim, m_cfgPanel, m_cfgCard, m_cfgKeycap;
+    SP<Config::Values::CColorValue>  m_cfgTitle, m_cfgAction, m_cfgKey, m_cfgSeparator;
+    SP<Config::Values::CIntValue>    m_cfgPanelRounding, m_cfgCardRounding, m_cfgKeycapRounding;
 
     bool          m_visible     = false;
     double        m_anim        = 0.0; // actual opacity 0..1 (drives fade)

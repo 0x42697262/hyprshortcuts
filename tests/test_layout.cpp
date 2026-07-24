@@ -104,6 +104,52 @@ TEST(Layout, ChordStepsGetSeparatorBetweenThem) {
     EXPECT_EQ(plus, 1);    // one + inside step 1 (Super + X)
 }
 
+TEST(Layout, IconStyleEmitsGlyphText) {
+    LayoutMetrics m;
+    m.keyStyle = KeyCapStyle::Icons;
+    auto t     = computeLayout({catWith("Apps", 1)}, m, fakeMeasure());
+    std::vector<std::string> glyphs;
+    for (const auto& tx : t.texts)
+        if (tx.role == TextRole::KeyGlyph)
+            glyphs.push_back(tx.text);
+    ASSERT_EQ(glyphs.size(), 2u);
+    EXPECT_EQ(glyphs[0], "⌘"); // Super's glyph, not its label
+    EXPECT_EQ(glyphs[1], "S");
+}
+
+TEST(Layout, TextStyleEmitsLabelText) {
+    LayoutMetrics m;
+    m.keyStyle = KeyCapStyle::Text;
+    auto t     = computeLayout({catWith("Apps", 1)}, m, fakeMeasure());
+    std::vector<std::string> labels;
+    for (const auto& tx : t.texts)
+        if (tx.role == TextRole::KeyGlyph)
+            labels.push_back(tx.text);
+    ASSERT_EQ(labels.size(), 2u);
+    EXPECT_EQ(labels[0], "Super"); // Super's label, not its glyph
+    EXPECT_EQ(labels[1], "S");
+}
+
+TEST(Layout, TextStyleWidensKeycapsForLongLabels) {
+    const auto capWidthFor = [](KeyCapStyle style) {
+        LayoutMetrics m;
+        m.keyStyle = style;
+        Category c;
+        c.name = "T";
+        Shortcut s;
+        s.steps  = {{{}, {"⏎", "Enter"}}}; // glyph shorter than label
+        s.action = "x";
+        c.items.push_back(s);
+        auto   t    = computeLayout({c}, m, fakeMeasure());
+        double capW = 0;
+        for (const auto& r : t.rects)
+            if (r.role == RectRole::KeyCap)
+                capW = r.rect.w;
+        return capW;
+    };
+    EXPECT_GT(capWidthFor(KeyCapStyle::Text), capWidthFor(KeyCapStyle::Icons));
+}
+
 TEST(Layout, UsesMultipleColumnsForManyCategories) {
     LayoutMetrics m;
     m.screenW = 3840; // wide screen fits several columns

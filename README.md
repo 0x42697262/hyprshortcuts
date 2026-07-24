@@ -109,6 +109,42 @@ hc.chord(chord, action, opts and opts.description)
 Chords without a description are hidden (hyprchord's auto label like
 `super+x ; f -> lua` is treated as "no description").
 
+## Configuration
+
+All appearance is configurable under a `plugin { hyprshortcuts { ... } }` block.
+Values are re-read on `hyprctl reload`, so you can tweak the theme live. Colors
+are `AARRGGBB` hex.
+
+```ini
+plugin {
+    hyprshortcuts {
+        key_style   = icons     # keycap contents: "icons" (⌘ ⏎) or "text" (Super Enter)
+        font_family = Sans      # font for all overlay text
+        max_columns = 4         # max columns of category cards (1–8)
+
+        # colors (AARRGGBB)
+        scrim_color     = 0x73000000   # full-screen dim behind the panel
+        panel_color     = 0xF01C1F26   # panel background
+        card_color      = 0xF52A2C36   # category card background
+        keycap_color    = 0xFF3D404D   # keycap background
+        title_color     = 0xFF8CC7FF   # category title text
+        action_color    = 0xFFD1D6E0   # action/description text
+        key_color       = 0xFFF5F5FA   # keycap glyph/label text
+        separator_color = 0xFF808594   # the "+" joiner and chord "›"
+
+        # corner radii (px)
+        panel_rounding  = 18
+        card_rounding   = 12
+        keycap_rounding = 6
+    }
+}
+```
+
+The defaults above reproduce the built-in dark theme, so an empty block changes
+nothing. Set `key_style = text` to render keycaps as word labels (`Super Enter`)
+instead of glyphs — keys without a distinct glyph (e.g. `F5`) look the same
+either way.
+
 ## Testing
 
 ```sh
@@ -120,14 +156,15 @@ splitting, grouping, and layout geometry) lives in a Hyprland-free `src/domain/`
 layer and is covered by GoogleTest — `make test` needs no running compositor.
 See `AGENTS.md` for the architecture and how to extend it.
 
-## Limitations / roadmap (v1)
+## Limitations / roadmap
 
-- The layout is computed **once per show** — it won't re-flow if the monitor
-  resolution changes while the overlay is up.
-- No pagination/scroll for very large bind sets.
-- Colors, font, and column count are hardcoded (a sensible dark theme); config
-  via `plugin { hyprshortcuts { ... } }` is planned.
+- No pagination/scroll for very large bind sets — a very tall sheet can overflow
+  the screen.
 - Rendering targets the monitor under the cursor.
+
+Colors, font, column count, and roundings are configurable (see
+[Configuration](#configuration)), and the layout re-flows if the monitor
+resolution changes while the overlay is up.
 
 ## Credits
 
