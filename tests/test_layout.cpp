@@ -190,6 +190,24 @@ TEST(Layout, TallContentSplitsIntoPages) {
     EXPECT_EQ(cards, 5);
 }
 
+TEST(Layout, AllPagesShareOnePanelSizeAndPosition) {
+    LayoutMetrics m;
+    m.screenW = 400; // single column, short screen -> several pages
+    m.screenH = 300;
+    std::vector<Category> cats;
+    for (int i = 0; i < 6; ++i)
+        cats.push_back(catWith("C" + std::to_string(i), i % 3 + 1)); // varying card heights
+    auto pages = computePages(cats, m, fakeMeasure());
+
+    ASSERT_GT(pages.size(), 1u);
+    for (const auto& p : pages) {
+        EXPECT_NEAR(p.panel.w, pages[0].panel.w, 0.001);
+        EXPECT_NEAR(p.panel.h, pages[0].panel.h, 0.001);
+        EXPECT_NEAR(p.panel.x, pages[0].panel.x, 0.001); // so the window never shifts
+        EXPECT_NEAR(p.panel.y, pages[0].panel.y, 0.001);
+    }
+}
+
 TEST(Layout, KeycapWidthGrowsWithGlyphWidth) {
     LayoutMetrics m;
     Category      c;

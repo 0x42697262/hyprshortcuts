@@ -95,23 +95,28 @@ LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics&
     }
 
     const double contentW = cols * m.columnWidth + (cols - 1) * m.colGap;
-    double       maxColH  = 0;
+    double       contentH = 0;
     for (double h : colHeights)
-        maxColH = std::max(maxColH, h > 0 ? h - m.cardGap : 0.0); // trailing cardGap not real
+        contentH = std::max(contentH, h > 0 ? h - m.cardGap : 0.0); // trailing cardGap not real
 
-    const double panelW = contentW + 2 * m.panelPad;
-    const double panelH = maxColH + 2 * m.panelPad;
+    // Panel may be floored to a shared size (see minPanelW/H); center the content
+    // block inside it so smaller pages sit in the middle rather than top-left.
+    const double panelW = std::max(contentW + 2 * m.panelPad, m.minPanelW);
+    const double panelH = std::max(contentH + 2 * m.panelPad, m.minPanelH);
     const double panelX = (m.screenW - panelW) / 2.0;
     const double panelY = (m.screenH - panelH) / 2.0;
     tree.panel          = {panelX, panelY, panelW, panelH};
+
+    const double originX = panelX + m.panelPad + (panelW - 2 * m.panelPad - contentW) / 2.0;
+    const double originY = panelY + m.panelPad + (panelH - 2 * m.panelPad - contentH) / 2.0;
 
     // Scrim (full screen) then panel background.
     tree.rects.push_back({{0, 0, m.screenW, m.screenH}, RectRole::Scrim, 0});
     tree.rects.push_back({tree.panel, RectRole::Panel, m.panelRadius});
 
     for (int ci = 0; ci < cols; ++ci) {
-        const double colX = panelX + m.panelPad + ci * (m.columnWidth + m.colGap);
-        double       y    = panelY + m.panelPad;
+        const double colX = originX + ci * (m.columnWidth + m.colGap);
+        double       y    = originY;
 
         for (const Category* c : columns[ci]) {
             const double h = cardHeight(*c, m);
@@ -214,19 +219,35 @@ std::vector<LayoutTree> computePages(const std::vector<Category>& cats, const La
         pages.back().push_back(&c);
     }
 
-    std::vector<LayoutTree> trees;
-    trees.reserve(pages.size());
-    for (size_t i = 0; i < pages.size(); ++i) {
-        std::vector<Category> subset;
-        subset.reserve(pages[i].size());
+    std::vector<std::vector<Category>> subsets(pages.size());
+    for (size_t i = 0; i < pages.size(); ++i)
         for (const Category* c : pages[i])
-            subset.push_back(*c);
-        LayoutTree t = computeLayout(subset, m, measure);
-        t.pageIndex  = static_cast<int>(i);
-        t.pageCount  = static_cast<int>(pages.size());
-        trees.push_back(std::move(t));
+            subsets[i].push_back(*c);
+
+    const auto build = [&](const LayoutMetrics& metrics) {
+        std::vector<LayoutTree> out;
+        out.reserve(subsets.size());
+        for (size_t i = 0; i < subsets.size(); ++i) {
+            LayoutTree t = computeLayout(subsets[i], metrics, measure);
+            t.pageIndex  = static_cast<int>(i);
+            t.pageCount  = static_cast<int>(subsets.size());
+            out.push_back(std::move(t));
+        }
+        return out;
+    };
+
+    std::vector<LayoutTree> trees = build(m);
+    if (trees.size() <= 1)
+        return trees;
+
+    // Pin every page to the largest panel so flipping pages doesn't resize the
+    // window; content stays centered within it (see computeLayout).
+    LayoutMetrics uniform = m;
+    for (const auto& t : trees) {
+        uniform.minPanelW = std::max(uniform.minPanelW, t.panel.w);
+        uniform.minPanelH = std::max(uniform.minPanelH, t.panel.h);
     }
-    return trees;
+    return build(uniform);
 }
 
 } // namespace hs

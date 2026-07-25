@@ -84,6 +84,11 @@ struct LayoutMetrics {
     double keyToActionGap    = 14;
     double actionPx          = 15;
     double actionMaxW        = 320; // widen a column to fit an action up to this; beyond it, ellipsize
+    // Floor for the panel size. computePages sets these to the largest page so
+    // every page shares one size (the window doesn't resize while paging). The
+    // content block is centered within the panel when the panel exceeds it.
+    double minPanelW         = 0;
+    double minPanelH         = 0;
 };
 
 // Compute the full render tree for the given categories (a single page).
