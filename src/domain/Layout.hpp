@@ -50,6 +50,8 @@ struct LayoutTree {
     Rect                  panel;
     std::vector<RectNode> rects; // draw order: scrim, panel, cards, keycaps
     std::vector<TextNode> texts;
+    int                   pageIndex = 0; // 0-based position of this page
+    int                   pageCount = 1; // total pages (>1 shows a page indicator)
 };
 
 struct LayoutMetrics {
@@ -57,6 +59,7 @@ struct LayoutMetrics {
     double      screenH      = 1080;
     KeyCapStyle keyStyle     = KeyCapStyle::Icons;
     double maxPanelWidthFrac = 0.9;
+    double maxPanelHeightFrac = 0.88; // content taller than this splits into pages
     int    maxColumns        = 4;
     double columnWidth       = 340;
     double colGap            = 28;
@@ -82,8 +85,14 @@ struct LayoutMetrics {
     double actionPx          = 15;
 };
 
-// Compute the full render tree for the given categories.
+// Compute the full render tree for the given categories (a single page).
 LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics& m,
                          const TextMeasure& measure);
+
+// Split the categories into pages that each fit within maxPanelHeightFrac of the
+// screen height, then lay out each page independently (centered). Always returns
+// at least one page; each carries its pageIndex/pageCount.
+std::vector<LayoutTree> computePages(const std::vector<Category>& cats, const LayoutMetrics& m,
+                                     const TextMeasure& measure);
 
 } // namespace hs

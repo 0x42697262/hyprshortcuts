@@ -1,6 +1,7 @@
 #include "OverlayRenderer.hpp"
 
 #include <algorithm>
+#include <format>
 
 #include <src/helpers/Color.hpp>
 #include <src/render/Renderer.hpp>
@@ -10,6 +11,9 @@
 namespace hs {
 
 namespace {
+
+constexpr double kPageIndicatorPx  = 13.0; // font size of the "i / n" indicator
+constexpr double kPageIndicatorGap = 8.0;  // gap below the panel, in layout px
 
 // Rect fill from the theme; the colour's alpha is folded with the fade value.
 CHyprColor rectColor(const Theme& t, RectRole role, float a) {
@@ -82,6 +86,23 @@ void OverlayRenderer::draw(const LayoutTree& tree, PHLMONITOR monitor, double fa
         d.box = CBox{x, y, sz.w, sz.h};
         d.a   = a;
         pass.add(makeUnique<CTexPassElement>(d));
+    }
+
+    // Page indicator ("2 / 3"), centered just below the panel, when paginated.
+    if (tree.pageCount > 1) {
+        const std::string label = std::format("{} / {}", tree.pageIndex + 1, tree.pageCount);
+        const RGBA        col   = m_theme.separator;
+        Vec2              sz;
+        auto tex = text.textureFor(label, kPageIndicatorPx * scale, col.r, col.g, col.b, sz);
+        if (tex) {
+            const double cx = (tree.panel.x + tree.panel.w / 2.0) * scale;
+            const double y  = (tree.panel.y + tree.panel.h + kPageIndicatorGap) * scale;
+            CTexPassElement::SRenderData d;
+            d.tex = tex;
+            d.box = CBox{cx - sz.w / 2.0, y, sz.w, sz.h};
+            d.a   = a;
+            pass.add(makeUnique<CTexPassElement>(d));
+        }
     }
 }
 

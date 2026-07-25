@@ -132,4 +132,55 @@ LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics&
     return tree;
 }
 
+std::vector<LayoutTree> computePages(const std::vector<Category>& cats, const LayoutMetrics& m,
+                                     const TextMeasure& measure) {
+    // Decide the column count once (by width) so every page looks consistent,
+    // then greedily assign cards to the shortest column of the current page.
+    // When a card would push the current page past the usable height, it starts
+    // a new page. computeLayout re-positions each page's cards (same masonry),
+    // so this only decides page boundaries.
+    const int    cols    = columnCount(m, cats.size());
+    const double usableH = m.screenH * m.maxPanelHeightFrac - 2 * m.panelPad;
+
+    std::vector<std::vector<const Category*>> pages;
+    std::vector<double>                       colH;
+    const auto startPage = [&] {
+        pages.emplace_back();
+        colH.assign(cols, 0.0);
+    };
+    startPage();
+
+    for (const auto& c : cats) {
+        const double h = cardHeight(c, m);
+
+        int shortest = 0;
+        for (int i = 1; i < cols; ++i)
+            if (colH[i] < colH[shortest])
+                shortest = i;
+
+        const bool   pageEmpty = std::all_of(colH.begin(), colH.end(), [](double v) { return v == 0.0; });
+        const double added     = (colH[shortest] > 0 ? m.cardGap : 0.0) + h;
+        if (!pageEmpty && colH[shortest] + added > usableH) {
+            startPage();
+            shortest = 0;
+        }
+        colH[shortest] += (colH[shortest] > 0 ? m.cardGap : 0.0) + h;
+        pages.back().push_back(&c);
+    }
+
+    std::vector<LayoutTree> trees;
+    trees.reserve(pages.size());
+    for (size_t i = 0; i < pages.size(); ++i) {
+        std::vector<Category> subset;
+        subset.reserve(pages[i].size());
+        for (const Category* c : pages[i])
+            subset.push_back(*c);
+        LayoutTree t = computeLayout(subset, m, measure);
+        t.pageIndex  = static_cast<int>(i);
+        t.pageCount  = static_cast<int>(pages.size());
+        trees.push_back(std::move(t));
+    }
+    return trees;
+}
+
 } // namespace hs

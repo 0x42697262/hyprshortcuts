@@ -108,5 +108,9 @@ keycap style (`icons`/`text`) are configurable from Lua via
 and the `config.reloaded` listener). Config values feed a base `LayoutMetrics`
 (`m_metrics`), the render `Theme` (`OverlayRenderer::setTheme`), and the font
 (`TextRenderer::setFont`). The layout re-flows when the monitor resolution
-changes (a size-diff check in `onRenderStage`). The remaining v1 gap is
-pagination/scroll for oversized sheets.
+changes (a size-diff check in `onRenderStage`). Oversized sheets auto-paginate:
+`Layout::computePages` splits categories into height-fitting pages (each a
+`LayoutTree` with `pageIndex`/`pageCount`), the controller holds `m_pages` +
+`m_page`, and `onKeyEvent` resolves `Tab`/`Shift+Tab` (via the active keyboard's
+xkb sym state) to flip pages instead of dismissing. The renderer draws a
+`pageCount > 1` indicator below the panel.

@@ -41,7 +41,9 @@ class OverlayController : public ICommandContext {
     bool   registerConfig(HANDLE handle);  // create + register all config values
     void   readConfig();                   // config values -> metrics/theme/font
     void   rebuildModel();                 // live binds -> grouped categories
-    void   rebuildLayout(PHLMONITOR mon);  // categories -> LayoutTree for a monitor
+    void   rebuildLayout(PHLMONITOR mon);  // categories -> pages for a monitor
+    void   flipPage(int delta);            // advance the shown page (wraps)
+    bool   onKeyEvent(uint32_t keycode);   // returns true if the key was consumed for paging
     void   onRenderStage(eRenderStage stage);
     void   onKeyPressed();
     void   damageTarget();
@@ -51,10 +53,11 @@ class OverlayController : public ICommandContext {
     TextRenderer    m_text;
     OverlayRenderer m_renderer;
 
-    std::vector<Category> m_cats;
-    LayoutTree            m_tree;
-    LayoutMetrics         m_metrics;    // base metrics from config (no screen size)
-    Vec2                  m_treeSize;   // screen size the current m_tree was built for
+    std::vector<Category>   m_cats;
+    std::vector<LayoutTree> m_pages;     // one LayoutTree per page (>=1)
+    size_t                  m_page = 0;  // currently shown page
+    LayoutMetrics           m_metrics;   // base metrics from config (no screen size)
+    Vec2                    m_treeSize;  // screen size the current pages were built for
 
     // Config values (plugin:hyprshortcuts:*). Registered in init, read on reload.
     SP<Config::Values::CStringValue> m_cfgKeyStyle;

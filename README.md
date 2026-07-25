@@ -66,7 +66,10 @@ hc.chord("SUPER + SLASH", hl.plugin.hyprshortcuts.toggle, "System: Keybind cheat
 ```
 
 Press it to show/hide. While the overlay is up, **any key (e.g. `Escape`)
-dismisses it** (the key is swallowed).
+dismisses it** (the key is swallowed) — except **`Tab` / `Shift+Tab`, which page
+through the sheet** when your binds span more than one page (a `2 / 3` indicator
+shows below the panel). The sheet auto-paginates when the categories don't fit
+the screen height.
 
 Lua functions: `hl.plugin.hyprshortcuts.toggle` / `.close` / `.refresh`
 (re-read binds). The same actions are also plain dispatchers
@@ -161,13 +164,12 @@ See `AGENTS.md` for the architecture and how to extend it.
 
 ## Limitations / roadmap
 
-- No pagination/scroll for very large bind sets — a very tall sheet can overflow
-  the screen.
 - Rendering targets the monitor under the cursor.
 
 Colors, font, column count, and roundings are configurable (see
-[Configuration](#configuration)), and the layout re-flows if the monitor
-resolution changes while the overlay is up.
+[Configuration](#configuration)); the layout re-flows if the monitor resolution
+changes while the overlay is up; and oversized bind sets auto-paginate, navigated
+with `Tab` / `Shift+Tab`.
 
 ## Credits
 

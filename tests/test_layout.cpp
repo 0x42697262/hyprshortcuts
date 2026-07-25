@@ -161,6 +161,35 @@ TEST(Layout, UsesMultipleColumnsForManyCategories) {
     EXPECT_GT(t.panel.w, m.columnWidth + 2 * m.panelPad + 1);
 }
 
+TEST(Layout, FewCategoriesFitOnePage) {
+    LayoutMetrics m;
+    auto          pages = computePages({catWith("A", 2), catWith("B", 2)}, m, fakeMeasure());
+    ASSERT_EQ(pages.size(), 1u);
+    EXPECT_EQ(pages[0].pageCount, 1);
+    EXPECT_EQ(pages[0].pageIndex, 0);
+}
+
+TEST(Layout, TallContentSplitsIntoPages) {
+    LayoutMetrics m;
+    m.screenW = 400; // narrow -> a single column
+    m.screenH = 300; // short -> little vertical room per page
+    std::vector<Category> cats;
+    for (int i = 0; i < 5; ++i)
+        cats.push_back(catWith("C" + std::to_string(i), 2));
+    auto pages = computePages(cats, m, fakeMeasure());
+
+    ASSERT_GT(pages.size(), 1u);
+    for (size_t i = 0; i < pages.size(); ++i) {
+        EXPECT_EQ(pages[i].pageIndex, static_cast<int>(i));
+        EXPECT_EQ(pages[i].pageCount, static_cast<int>(pages.size()));
+    }
+    // every category card survives, spread across the pages
+    int cards = 0;
+    for (const auto& p : pages)
+        cards += countRole(p, RectRole::Card);
+    EXPECT_EQ(cards, 5);
+}
+
 TEST(Layout, KeycapWidthGrowsWithGlyphWidth) {
     LayoutMetrics m;
     Category      c;

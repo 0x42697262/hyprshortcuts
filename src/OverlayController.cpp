@@ -4,10 +4,12 @@
 #include <chrono>
 
 #include <lua.hpp>
+#include <xkbcommon/xkbcommon.h>
 
 #include <src/Compositor.hpp>
 #include <src/devices/IKeyboard.hpp>
 #include <src/event/EventBus.hpp>
+#include <src/managers/SeatManager.hpp>
 #include <src/plugins/PluginAPI.hpp>
 #include <src/render/Renderer.hpp>
 
@@ -51,6 +53,10 @@ bool OverlayController::init(HANDLE handle) {
                 return;
             if (nowMs() - m_openedAtMs < kOpenGuardMs)
                 return;
+            if (onKeyEvent(ev.keycode)) {
+                info.cancelled = true; // Tab paged the sheet; swallow, stay open
+                return;
+            }
             hide();
             info.cancelled = true; // swallow the dismiss key
         });
@@ -209,8 +215,43 @@ void OverlayController::rebuildLayout(PHLMONITOR mon) {
     m.screenW       = mon->m_size.x;
     m.screenH       = mon->m_size.y;
     m_treeSize      = {m.screenW, m.screenH};
-    m_tree          = computeLayout(
+    m_pages         = computePages(
         m_cats, m, [this](const std::string& t, double px) { return m_text.measure(t, px); });
+    if (m_page >= m_pages.size())
+        m_page = 0;
+}
+
+void OverlayController::flipPage(int delta) {
+    if (m_pages.size() <= 1)
+        return;
+    const int n = static_cast<int>(m_pages.size());
+    m_page      = static_cast<size_t>(((static_cast<int>(m_page) + delta) % n + n) % n);
+    damageTarget();
+}
+
+bool OverlayController::onKeyEvent(uint32_t keycode) {
+    // Tab / Shift+Tab flip pages (and are swallowed) when there's more than one
+    // page; every other key falls through to dismiss. Resolve the keysym from
+    // the active keyboard so this is layout-correct rather than keycode-guessing.
+    if (m_pages.size() <= 1)
+        return false;
+    auto kbd = g_pSeatManager ? g_pSeatManager->m_keyboard.lock() : nullptr;
+    if (!kbd || !kbd->m_xkbSymState)
+        return false;
+
+    const xkb_keysym_t sym  = xkb_state_key_get_one_sym(kbd->m_xkbSymState, keycode + 8);
+    const uint32_t     mods = kbd->getModifiers();
+    constexpr uint32_t MOD_SHIFT = 1 << 0;
+
+    if (sym == XKB_KEY_Tab) {
+        flipPage((mods & MOD_SHIFT) ? -1 : 1);
+        return true;
+    }
+    if (sym == XKB_KEY_ISO_Left_Tab) { // some layouts emit this for Shift+Tab
+        flipPage(-1);
+        return true;
+    }
+    return false;
 }
 
 void OverlayController::show() {
@@ -221,6 +262,7 @@ void OverlayController::show() {
         return;
 
     m_target = mon;
+    m_page   = 0; // always open on the first page
     rebuildLayout(mon);
 
     m_visible     = true;
@@ -285,7 +327,8 @@ void OverlayController::onRenderStage(eRenderStage stage) {
     if (cur->m_size.x != m_treeSize.w || cur->m_size.y != m_treeSize.h)
         rebuildLayout(cur);
 
-    m_renderer.draw(m_tree, cur, m_anim, m_text);
+    if (m_page < m_pages.size())
+        m_renderer.draw(m_pages[m_page], cur, m_anim, m_text);
 
     // Only keep requesting frames while the fade is still in motion.
     const bool animating = (m_visible && m_anim < 1.0) || (!m_visible && m_anim > 0.0);
