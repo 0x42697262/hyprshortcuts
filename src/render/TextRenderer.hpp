@@ -23,12 +23,14 @@ class TextRenderer {
     void setFont(std::string fontFamily);
 
     // Pixel size of `text` at `px`. Safe to call without a GL context.
-    Vec2 measure(const std::string& text, double px) const;
+    // maxWidthPx > 0 constrains the layout and ellipsizes (…) at that width.
+    Vec2 measure(const std::string& text, double px, double maxWidthPx = 0) const;
 
     // Cached texture of `text` at `px` in the given colour (0..1). The cached
     // texture's pixel size is written to outSize. Requires a live GL context.
+    // maxWidthPx > 0 ellipsizes the text to that width so it never exceeds its box.
     SP<Render::ITexture> textureFor(const std::string& text, double px, float r, float g, float b,
-                            Vec2& outSize);
+                            Vec2& outSize, double maxWidthPx = 0);
 
     // Drop all cached textures (e.g. on font change / shutdown).
     void clear();

@@ -32,11 +32,52 @@ double keycapWidth(const std::string& glyph, const LayoutMetrics& m, const TextM
     return std::max(m.keycapMinW, textW + 2 * m.keycapPadX);
 }
 
+// Horizontal space the keycaps + joiners of a shortcut row consume (no action).
+// Mirrors the x advances in the draw loop so a column can be sized to fit them.
+double rowKeycapWidth(const Shortcut& s, const LayoutMetrics& m, const TextMeasure& measure) {
+    double x = 0;
+    for (size_t si = 0; si < s.steps.size(); ++si) {
+        if (si > 0)
+            x += m.keycapGap + measure("›", m.plusPx).w + m.keycapGap;
+        const auto&  step   = s.steps[si];
+        const size_t tokens = step.mods.size() + 1;
+        for (size_t t = 0; t < tokens; ++t) {
+            if (t > 0)
+                x += m.keycapGap + measure("+", m.plusPx).w + m.keycapGap;
+            const KeyCap& cap = t < step.mods.size() ? step.mods[t] : step.key;
+            x += keycapWidth(capText(cap, m.keyStyle), m, measure);
+        }
+    }
+    return x;
+}
+
+// Column width that fits the widest card content (keycap row + a bounded action,
+// or the title), clamped to [m.columnWidth, single-column max]. Keeps the fixed
+// width as a floor so normal sheets are unchanged; only grows when content needs
+// it, so keycaps never march past the card's rounded edge.
+double effectiveColumnWidth(const std::vector<Category>& cats, const LayoutMetrics& m,
+                            const TextMeasure& measure) {
+    double need = 0;
+    for (const auto& c : cats) {
+        need = std::max(need, measure(c.name, m.titlePx).w);
+        for (const auto& s : c.items) {
+            const double action = std::min(measure(s.action, m.actionPx).w, m.actionMaxW);
+            need = std::max(need, rowKeycapWidth(s, m, measure) + m.keyToActionGap + action);
+        }
+    }
+    const double maxColW = m.screenW * m.maxPanelWidthFrac - 2 * m.panelPad;
+    return std::clamp(need + 2 * m.cardPadX, m.columnWidth, std::max(m.columnWidth, maxColW));
+}
+
 } // namespace
 
-LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics& m,
+LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics& mIn,
                          const TextMeasure& measure) {
     LayoutTree tree;
+
+    // Grow the column to fit its content (keeping mIn.columnWidth as the floor).
+    LayoutMetrics m = mIn;
+    m.columnWidth   = effectiveColumnWidth(cats, mIn, measure);
 
     const int cols = columnCount(m, cats.size());
 
@@ -132,13 +173,18 @@ LayoutTree computeLayout(const std::vector<Category>& cats, const LayoutMetrics&
     return tree;
 }
 
-std::vector<LayoutTree> computePages(const std::vector<Category>& cats, const LayoutMetrics& m,
+std::vector<LayoutTree> computePages(const std::vector<Category>& cats, const LayoutMetrics& mIn,
                                      const TextMeasure& measure) {
     // Decide the column count once (by width) so every page looks consistent,
     // then greedily assign cards to the shortest column of the current page.
     // When a card would push the current page past the usable height, it starts
     // a new page. computeLayout re-positions each page's cards (same masonry),
     // so this only decides page boundaries.
+    // Size columns to the whole set once, so every page shares one width (and so
+    // the page-break column count below matches what computeLayout will use).
+    LayoutMetrics m = mIn;
+    m.columnWidth   = effectiveColumnWidth(cats, mIn, measure);
+
     const int    cols    = columnCount(m, cats.size());
     const double usableH = m.screenH * m.maxPanelHeightFrac - 2 * m.panelPad;
 

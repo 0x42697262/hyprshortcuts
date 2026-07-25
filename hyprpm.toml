@@ -1,9 +1,9 @@
 [repository]
 name = "hyprshortcuts"
-authors = ["chicken"]
+authors = ["0x42697262"]
 
 [hyprshortcuts]
 description = "Keybind cheatsheet overlay for Hyprland (like AwesomeWM's helper)"
-authors = ["chicken"]
+authors = ["0x42697262"]
 output = "hyprshortcuts.so"
 build = ["make all"]

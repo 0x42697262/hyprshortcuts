@@ -83,6 +83,7 @@ struct LayoutMetrics {
     double plusPx            = 13;
     double keyToActionGap    = 14;
     double actionPx          = 15;
+    double actionMaxW        = 320; // widen a column to fit an action up to this; beyond it, ellipsize
 };
 
 // Compute the full render tree for the given categories (a single page).
