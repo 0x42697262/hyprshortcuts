@@ -1,6 +1,6 @@
 #pragma once
 
-#include <src/helpers/Monitor.hpp>
+#include <src/output/Monitor.hpp>
 
 #include "../domain/Layout.hpp"
 #include "TextRenderer.hpp"

@@ -11,7 +11,9 @@
 #include <src/event/EventBus.hpp>
 #include <src/managers/SeatManager.hpp>
 #include <src/plugins/PluginAPI.hpp>
+#include <src/pointer/PointerManager.hpp>
 #include <src/render/Renderer.hpp>
+#include <src/state/MonitorState.hpp>
 
 #include "BindSource.hpp"
 #include "commands/Commands.hpp"
@@ -257,7 +259,7 @@ bool OverlayController::onKeyEvent(uint32_t keycode) {
 void OverlayController::show() {
     if (!g_pCompositor)
         return;
-    PHLMONITOR mon = g_pCompositor->getMonitorFromCursor();
+    PHLMONITOR mon = State::monitorState()->query().vec(Pointer::mgr()->position()).run();
     if (!mon)
         return;
 
